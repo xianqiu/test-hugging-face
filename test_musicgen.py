@@ -101,7 +101,7 @@ def test_tta_text_and_audio_to_music():
     texts = ["80s pop track with bassy drums and synth",
              "90s rock song with loud guitars and heavy drums"]
 
-    audio_files = ['data/audios/a1.wav', 'data/audios/a2.wav']
+    audio_files = ['data/musics/a1.wav', 'data/musics/a2.wav']
     mg.generate_by_audio_and_text(seconds=15,
                                   audio_files=audio_files,
                                   sampling_rate=32_000,

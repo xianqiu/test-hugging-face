@@ -13,13 +13,13 @@ class OuteTTS(object):
         self._language = language
         self._device = 'cuda:0'
         self._model = self._set_model()
-        self._my_speaker_directory = "data/speakers"
         self._speaker = self._load_speaker(speaker_name)
 
     def _load_speaker(self, speaker_name):
             if not speaker_name:
                 return
-            filepath = Path(self._my_speaker_directory) / f"{speaker_name}.json"
+            filepath = Path(f"{speaker_name}.json").resolve()
+            print(filepath)
             if filepath.exists():
                 speaker = self._model.load_speaker(str(filepath))
             else:
@@ -58,14 +58,15 @@ class OuteTTS(object):
         # Save the synthesized speech to a file
         output.save("outputs/outetts_out_text.wav")
 
-    def create_speaker(self, audio_path, transcript_path, speaker_name):
+    def create_speaker(self, audio_path, transcript_path, speaker_name, save_to):
         #  Create a speaker profile (use a 10-15 second audio clip)
         with open(transcript_path, 'r', encoding='utf-8') as file:
             transcript = file.read()
         speaker = self._model.create_speaker(audio_path=audio_path,
                                              transcript=transcript)
-        speaker_filepath = f"{self._my_speaker_directory}/{speaker_name}.json"
-        self._model.save_speaker(speaker, speaker_filepath)
+        filepath = Path(save_to) / f"{speaker_name}.json"
+        self._model.save_speaker(speaker, filepath)
+        print(f">> Speaker [{speaker_name}] created. Profile saved to path [{filepath}] ")
 
 
 def test_tts_english():
@@ -82,12 +83,13 @@ def test_tts_chinese(speaker_name='female_1'):
     ot.generate(text)
 
 
-def create_my_speaker(index):
+def create_my_speaker(speaker_name):
     ot = OuteTTS(language='zh')
     ot.create_speaker(
-        audio_path=f"data/speakers/my_speaker{index}.wav",
-        transcript_path=f"data/speakers/my_speaker{index}.TXT",
-        speaker_name=f"my_speaker{index}"
+        audio_path=f"data/speech/14.wav",
+        transcript_path=f"data/speech/14.TXT",
+        speaker_name=speaker_name,
+        save_to=f"outputs"
     )
 
 
@@ -95,8 +97,8 @@ if __name__ == '__main__':
 
     # test_tts_english()
     # test_tts_chinese()
-    create_my_speaker(index=1)
-    test_tts_chinese('my_speaker1')
+    create_my_speaker("my_speaker")
+    test_tts_chinese(speaker_name='outputs/my_speaker')
 
 
 
