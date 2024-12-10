@@ -1,113 +1,13 @@
-import os
 from pathlib import Path
-import subprocess
 
 from sam2.build_sam import build_sam2
 from sam2.automatic_mask_generator import SAM2AutomaticMaskGenerator, SAM2ImagePredictor
 from sam2.build_sam import build_sam2_video_predictor
 from PIL import Image
 import numpy as np
-import matplotlib.pyplot as plt
-import cv2
-import torch
-
-from _utils import ModelManager, RunFfmpeg
 
 
-class MaskShower(object):
-
-    def __init__(self, image, masks=None, points=None, labels=None, boxes=None, **kwargs):
-        self._image = image
-        self._masks = masks
-        self._points = points
-        self._labels = labels
-        self._boxes = boxes
-        self._figure = None
-        self._ax = None
-        self._config = {
-            'color': np.array([30 / 255, 144 / 255, 255 / 255, 0.6]),
-            'random_color': True,
-            'marker_size': 375,
-            'dpi': 96
-        }
-        self._process_kwargs(kwargs)
-
-    def _process_kwargs(self, kwargs):
-        for k, v in kwargs.items():
-            if k in self._config.keys():
-                self._config[k] = v
-
-    def _show_mask(self, mask):
-        color = self._config['color']
-        if self._config['random_color']:
-            color = np.concatenate([np.random.random(3), np.array([0.6])], axis=0)
-        h, w = mask.shape[-2:]
-        mask = mask.astype(np.uint8)
-        mask_image = mask.reshape(h, w, 1) * color.reshape(1, 1, -1)
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-        # Try to smooth contours
-        contours = [cv2.approxPolyDP(contour, epsilon=0.01, closed=True) for contour in contours]
-        mask_image = cv2.drawContours(mask_image, contours, -1, (1, 1, 1, 0.5), thickness=1)
-        self._ax.imshow(mask_image)
-
-    def _show_points(self, points, labels):
-        pos_points = points[labels == 1]
-        neg_points = points[labels == 0]
-        self._ax.scatter(pos_points[:, 0], pos_points[:, 1],
-                   color='green', marker='*', s=self._config['marker_size'],
-                   edgecolor='white', linewidth=1.25)
-        self._ax.scatter(neg_points[:, 0], neg_points[:, 1],
-                   color='red', marker='*', s=self._config['marker_size'],
-                   edgecolor='white', linewidth=1.25)
-
-    def _show_box(self, box):
-        x0, y0 = box[0], box[1]
-        w, h = box[2] - box[0], box[3] - box[1]
-        self._ax.add_patch(plt.Rectangle((x0, y0), w, h,
-                                         edgecolor='green',
-                                         facecolor=(0, 0, 0, 0),
-                                         lw=2))
-
-    def _render(self):
-        # setup figure
-        width, height = self._image.size
-        dpi = self._config['dpi']
-        self._figure = plt.figure(figsize=(width / dpi, height / dpi), dpi=self._config['dpi'])
-        self._ax = plt.gca()
-
-        # show elements
-        # image
-        self._ax.imshow(self._image)
-        plt.imshow(self._image)
-        # points
-        if self._points is not None:
-            self._show_points(self._points, self._labels)
-        # box
-        if self._boxes is not None:
-            if len(np.array(self._boxes).shape) == 1:
-                self._boxes = [self._boxes]
-            for box in self._boxes:
-                self._show_box(box)
-        # masks
-        if self._masks is not None:
-            if len(np.array(self._masks).shape) == 4:  # For multiple box
-                self._masks = np.squeeze(self._masks, axis=1)
-            for mask in self._masks:
-                self._show_mask(np.array(mask))
-
-        plt.axis('off')
-        # remove white spaces
-        self._figure.subplots_adjust(bottom=0, top=1, left=0, right=1, hspace=0, wspace=0)
-
-    def show(self):
-        self._render()
-        plt.show()
-        return self
-
-    def save(self, filepath):
-        self._render()
-        plt.savefig(filepath, dpi=self._config['dpi'])
-        plt.close(self._figure)
+from _utils import ModelManager, RunFfmpeg, MaskShower
 
 
 class SAM2forImage(object):
@@ -159,7 +59,7 @@ class SAM2forVideo(object):
         self._device = 'cuda:0'
         self._predictor = self._load_model()
         self._video_path= Path(video_path)
-        self._frame_directory = Path('outputs') / f"video_frames_{self._video_path.stem}"
+        self._frame_directory = Path('outputs') / f"sam2_video_frames_{self._video_path.stem}"
         self._frame_names = None
         self._prompt = None
         self._prompt_frame = 0
